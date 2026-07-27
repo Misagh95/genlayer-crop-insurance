@@ -47,15 +47,29 @@ Parametric insurance is a perfect fit for GenLayer because:
 - It **needs** decentralized consensus (no single oracle to bribe)
 - It's a real financial primitive, not a demo
 
+## Data Source
+
+Uses [Open-Meteo Archive API](https://open-meteo.com/) (free, no API key) for historical weather data.
+
 ## Deploy & Test
+
+```bash
+# run direct-mode unit tests (no Docker needed)
+pip install genlayer-test
+pytest tests/ -v
+```
 
 1. Open [GenLayer Studio](https://studio.genlayer.com/contracts)
 2. Connect your wallet and paste `crop_insurance.py`
 3. Deploy (costs zero — testnet GEN from [faucet](https://testnet-faucet.genlayer.foundation/))
-4. Call `buy_policy()` with lat/lon of a real farm and a future date range
-5. After the period, call `claim()` — validators fetch real weather data and decide payout
+4. Call `buy_policy()` with lat/lon of a real farm and a past date range
+5. Call `claim()` — validators fetch historical weather data and decide payout
 
 ## Files
 
-- `crop_insurance.py` — the Intelligent Contract
-- `README.md` — this file
+| File | Purpose |
+|------|---------|
+| `crop_insurance.py` | The Intelligent Contract |
+| `tests/test_direct.py` | Direct-mode unit tests (pytest) |
+| `requirements.txt` | Python deps for testing |
+| `README.md` | This file |

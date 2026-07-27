@@ -124,7 +124,7 @@ class CropInsurance(gl.Contract):
 
         # -------- stage 1: weather data with consensus --------
         def fetch_weather():
-            url = (f"https://api.open-meteo.com/v1/forecast"
+            url = (f"https://archive-api.open-meteo.com/v1/archive"
                    f"?latitude={p_copy.lat}&longitude={p_copy.lon}"
                    f"&daily=precipitation_sum,temperature_2m_max"
                    f"&start_date={p_copy.start_ts}&end_date={p_copy.end_ts}"
