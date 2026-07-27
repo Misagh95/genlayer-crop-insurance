@@ -30,30 +30,17 @@ class CropInsurance(gl.Contract):
         self.next_id = u256(1)
 
     @gl.public.write
-    def buy_policy(
-        self,
-        crop: str,
-        place: str,
-        lat: float,
-        lon: float,
-        coverage: u256,
-        start_ts: u256,
-        end_ts: u256,
-        min_rain_mm: float,
-        max_temp_c: float,
-    ):
+    def add(self, coverage: u256):
         pid = self.next_id
-        p = PolicyData(
+        self.policies[pid] = PolicyData(
             owner=gl.message.sender_address,
-            lat=lat, lon=lon,
+            lat=1.0, lon=2.0,
             coverage=coverage,
-            start_ts=start_ts, end_ts=end_ts,
-            min_rain_mm=min_rain_mm, max_temp_c=max_temp_c,
+            start_ts=u256(0), end_ts=u256(0),
+            min_rain_mm=10.0, max_temp_c=35.0,
             claimed=False, paid=False,
         )
-        self.policies[pid] = p
-        self.policy_info[pid] = crop + "|" + place
-
+        self.policy_info[pid] = "wheat|farm"
         existing = self.user_policies.get(gl.message.sender_address)
         if existing is None:
             existing = DynArray[u256]()
@@ -70,7 +57,6 @@ class CropInsurance(gl.Contract):
             raise UserError("not your policy")
         if p.claimed:
             raise UserError("already claimed")
-
         p.claimed = True
         self.policies[policy_id] = p
         payout = self._assess(policy_id)
@@ -79,13 +65,12 @@ class CropInsurance(gl.Contract):
             self.policies[policy_id] = p
 
     @gl.public.view
-    def get_policy(self, policy_id: u256) -> str:
+    def get(self, policy_id: u256) -> str:
         p = self.policies.get(policy_id)
         if p is None:
-            return "not found"
+            return "none"
         info = self.policy_info.get(policy_id, "")
-        return (f"info={info}|cov={p.coverage}|"
-                f"clm={p.claimed}|paid={p.paid}")
+        return f"cov={p.coverage}|info={info}|clm={p.claimed}|paid={p.paid}"
 
     @gl.public.view
     def my_policies(self) -> str:
