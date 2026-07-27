@@ -1,6 +1,5 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
-from genlayer import *
-import typing
+from genlayer import gl, allow_storage, dataclass, Address, u256, TreeMap, DynArray, UserError
 import json
 
 
@@ -98,7 +97,7 @@ class CropInsurance(gl.Contract):
             gl.transfer(p.owner, payout)
 
     @gl.public.view
-    def get_policy(self, policy_id: u256) -> TreeMap[str, typing.Any]:
+    def get_policy(self, policy_id: u256):
         p = self.policies.get(policy_id)
         if p is None:
             return {"error": "not found"}
@@ -127,7 +126,6 @@ class CropInsurance(gl.Contract):
     def _assess(self, policy_id: u256) -> u256:
         p_copy = gl.storage.copy_to_memory(self.policies[policy_id])
 
-        # -------- stage 1: weather data with consensus --------
         def fetch_weather():
             url = (
                 f"https://archive-api.open-meteo.com/v1/archive"
@@ -156,7 +154,6 @@ class CropInsurance(gl.Contract):
         if weather_str is None:
             return u256(0)
 
-        # -------- stage 2: LLM damage assessment با consensus --------
         prompt = (
             f"You are a parametric crop insurance adjuster.\n"
             f"Crop: {p_copy.crop}\n"
@@ -177,7 +174,6 @@ class CropInsurance(gl.Contract):
             "Validators must agree on the payout_ratio within reasonable tolerance",
         )
 
-        # -------- stage 3: parse consensus result & pay --------
         try:
             raw = str(decision).strip()
             raw = (
@@ -189,8 +185,6 @@ class CropInsurance(gl.Contract):
             data = json.loads(raw)
             ratio = max(0.0, min(1.0, float(data.get("payout_ratio", 0.0))))
             payout = int(float(p_copy.coverage) * ratio)
-            print(f"[assess] policy {policy_id}: ratio={ratio}, payout={payout}")
             return u256(payout)
         except Exception as e:
-            print(f"[assess] parse failed: {e}, got: {decision}")
             return u256(0)
