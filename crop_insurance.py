@@ -1,7 +1,11 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 from genlayer import *
+import typing
 import json
 
+
+@allow_storage
+@dataclass
 class PolicyData:
     owner: Address
     crop: str
@@ -16,6 +20,7 @@ class PolicyData:
     max_temp_c: float
     claimed: bool
     paid: bool
+
 
 class CropInsurance(gl.Contract):
     policies: TreeMap[u256, PolicyData]
@@ -36,38 +41,38 @@ class CropInsurance(gl.Contract):
         start_ts: u256,
         end_ts: u256,
         min_rain_mm: float,
-        max_temp_c: float
+        max_temp_c: float,
     ):
         if gl.value_of_transaction() < coverage // u256(10):
             raise UserError("premium must be at least 10% of coverage")
 
-        # TODO: add validation for lat/lon range
         if start_ts >= end_ts:
             raise UserError("start must be before end")
 
         pid = self.next_id
-        p = PolicyData()
-        p.owner = gl.caller_address
-        p.crop = crop
-        p.location = location
-        p.lat = lat
-        p.lon = lon
-        p.coverage = coverage
-        p.premium = gl.value_of_transaction()
-        p.start_ts = start_ts
-        p.end_ts = end_ts
-        p.min_rain_mm = min_rain_mm
-        p.max_temp_c = max_temp_c
-        p.claimed = False
-        p.paid = False
+        p = PolicyData(
+            owner=gl.message.sender_address,
+            crop=crop,
+            location=location,
+            lat=lat,
+            lon=lon,
+            coverage=coverage,
+            premium=gl.value_of_transaction(),
+            start_ts=start_ts,
+            end_ts=end_ts,
+            min_rain_mm=min_rain_mm,
+            max_temp_c=max_temp_c,
+            claimed=False,
+            paid=False,
+        )
 
         self.policies[pid] = p
 
-        existing = self.user_policies.get(gl.caller_address)
+        existing = self.user_policies.get(gl.message.sender_address)
         if existing is None:
             existing = DynArray[u256]()
         existing.append(pid)
-        self.user_policies[gl.caller_address] = existing
+        self.user_policies[gl.message.sender_address] = existing
 
         self.next_id += u256(1)
 
@@ -76,7 +81,7 @@ class CropInsurance(gl.Contract):
         p = self.policies.get(policy_id)
         if p is None:
             raise UserError("policy not found")
-        if p.owner != gl.caller_address:
+        if p.owner != gl.message.sender_address:
             raise UserError("not your policy")
         if p.claimed:
             raise UserError("already claimed")
@@ -93,7 +98,7 @@ class CropInsurance(gl.Contract):
             gl.transfer(p.owner, payout)
 
     @gl.public.view
-    def get_policy(self, policy_id: u256) -> dict:
+    def get_policy(self, policy_id: u256) -> TreeMap[str, typing.Any]:
         p = self.policies.get(policy_id)
         if p is None:
             return {"error": "not found"}
@@ -104,12 +109,12 @@ class CropInsurance(gl.Contract):
             "coverage": str(p.coverage),
             "premium": str(p.premium),
             "claimed": p.claimed,
-            "paid": p.paid
+            "paid": p.paid,
         }
 
     @gl.public.view
     def my_policies(self) -> DynArray[u256]:
-        arr = self.user_policies.get(gl.caller_address)
+        arr = self.user_policies.get(gl.message.sender_address)
         if arr is None:
             return DynArray[u256]()
         return arr
@@ -124,11 +129,13 @@ class CropInsurance(gl.Contract):
 
         # -------- stage 1: weather data with consensus --------
         def fetch_weather():
-            url = (f"https://archive-api.open-meteo.com/v1/archive"
-                   f"?latitude={p_copy.lat}&longitude={p_copy.lon}"
-                   f"&daily=precipitation_sum,temperature_2m_max"
-                   f"&start_date={p_copy.start_ts}&end_date={p_copy.end_ts}"
-                   f"&timezone=auto")
+            url = (
+                f"https://archive-api.open-meteo.com/v1/archive"
+                f"?latitude={p_copy.lat}&longitude={p_copy.lon}"
+                f"&daily=precipitation_sum,temperature_2m_max"
+                f"&start_date={p_copy.start_ts}&end_date={p_copy.end_ts}"
+                f"&timezone=auto"
+            )
             resp = gl.nondet.web.get(url)
             return resp.body.decode("utf-8")
 
@@ -139,7 +146,6 @@ class CropInsurance(gl.Contract):
                 mine = fetch_weather()
                 ld = json.loads(leader_res.calldata)
                 md = json.loads(mine)
-                # check both responses have the expected structure
                 if "daily" not in ld or "daily" not in md:
                     return False
                 return True
@@ -166,17 +172,20 @@ class CropInsurance(gl.Contract):
         def evaluate():
             return gl.nondet.exec_prompt(prompt)
 
-        # all validators run the LLM eval, prompt_comparative checks
-        # whether outputs are semantically equivalent
         decision = gl.eq_principle.prompt_comparative(
             evaluate,
-            "Validators must agree on the payout_ratio within reasonable tolerance"
+            "Validators must agree on the payout_ratio within reasonable tolerance",
         )
 
         # -------- stage 3: parse consensus result & pay --------
         try:
             raw = str(decision).strip()
-            raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            raw = (
+                raw.removeprefix("```json")
+                .removeprefix("```")
+                .removesuffix("```")
+                .strip()
+            )
             data = json.loads(raw)
             ratio = max(0.0, min(1.0, float(data.get("payout_ratio", 0.0))))
             payout = int(float(p_copy.coverage) * ratio)
