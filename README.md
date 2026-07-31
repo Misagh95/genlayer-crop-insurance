@@ -51,6 +51,12 @@ Parametric insurance is a perfect fit for GenLayer because:
 
 Uses [Open-Meteo Archive API](https://open-meteo.com/) (free, no API key) for historical weather data.
 
+## Deployed on Bradbury
+
+`0x178cbB984b4afb8524B5f0340E30F7e1561181CE`
+
+Explorer: https://explorer-bradbury.genlayer.com/address/0x178cbB984b4afb8524B5f0340E30F7e1561181CE
+
 ## Deploy & Test
 
 ```bash
