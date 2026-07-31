@@ -17,7 +17,7 @@ Decentralized parametric crop insurance that evaluates weather data and settles 
 
 | Step | Mechanism | Details |
 |------|-----------|---------|
-| Weather fetch | `gl.vm.run_nondet_unsafe` | Leader fetches; validators verify the response has valid structure |
+| Weather fetch | `gl.vm.run_nondet_unsafe` | Leader fetches; each validator independently fetches and compares the full date / precipitation / temperature series (latitude, longitude, `daily.time`, `daily.precipitation_sum`, `daily.temperature_2m_max`) |
 | Damage assessment | `gl.eq_principle.prompt_comparative` | LLM evaluates damage; validators agree on semantically equivalent payout ratio |
 | Payout | Deterministic | Parses consensus JSON, calculates coverage * ratio, transfers |
 

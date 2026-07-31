@@ -53,7 +53,10 @@ class TestCropInsurance:
             {
                 "status": 200,
                 "body": json.dumps({
+                    "latitude": 1.0,
+                    "longitude": 2.0,
                     "daily": {
+                        "time": ["2026-07-01", "2026-07-02"],
                         "precipitation_sum": [0.0, 0.0],
                         "temperature_2m_max": [44.0, 42.0],
                     }

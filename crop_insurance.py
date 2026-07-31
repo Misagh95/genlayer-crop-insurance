@@ -104,7 +104,17 @@ class CropInsurance(gl.Contract):
                 mine = fetch_weather()
                 ld = json.loads(leader_res.calldata)
                 md = json.loads(mine)
-                return "daily" in ld and "daily" in md
+                if "daily" not in ld or "daily" not in md:
+                    return False
+                ldaily = ld["daily"]
+                mdaily = md["daily"]
+                return (
+                    ldaily.get("time") == mdaily.get("time")
+                    and ldaily.get("precipitation_sum") == mdaily.get("precipitation_sum")
+                    and ldaily.get("temperature_2m_max") == mdaily.get("temperature_2m_max")
+                    and ld.get("latitude") == md.get("latitude")
+                    and ld.get("longitude") == md.get("longitude")
+                )
             except Exception:
                 return False
 
